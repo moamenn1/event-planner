@@ -38,6 +38,7 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all"); // all, organized, invited
+  const [filterStatus, setFilterStatus] = useState("all"); // all, upcoming, past
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -135,6 +136,14 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
     setDeleteModal({ open: false, eventId: null });
   };
 
+  const isEventPast = (event) => {
+    if (!event.date) return false;
+    const eventDate = new Date(event.date);
+    const now = new Date();
+    // Past means before today (ignore time)
+    return eventDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  };
+
   const filteredEvents = events.filter(event => {
     // Filter by search term
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -144,11 +153,16 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
     // Filter by tab
     if (!user) return activeTab === "all";
     if (activeTab === "organized") {
-      return event.organizer === user.username;
+      if (event.organizer !== user.username) return false;
     } else if (activeTab === "invited") {
-      return getUserRSVP(event) !== null;
+      if (getUserRSVP(event) === null) return false;
     }
-    return true; // all
+
+    // Filter by status
+    if (filterStatus === 'past' && !isEventPast(event)) return false;
+    if (filterStatus === 'upcoming' && isEventPast(event)) return false;
+
+    return true;
   });
 
   return (
@@ -209,12 +223,19 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
               </div>
             </div>
             <div className="col-auto">
-              <button className="btn btn-outline-primary rounded-pill px-4">
-                <svg width="16" height="16" fill="currentColor" className="me-1" viewBox="0 0 16 16">
-                  <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
-                </svg>
-                Filters
-              </button>
+              <div className="dropdown">
+                <button className="btn btn-outline-primary rounded-pill px-4 dropdown-toggle" type="button" id="filtersDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                  <svg width="16" height="16" fill="currentColor" className="me-1" viewBox="0 0 16 16">
+                    <path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                  </svg>
+                  Filters
+                </button>
+                <ul className="dropdown-menu" aria-labelledby="filtersDropdown">
+                  <li><button className={`dropdown-item${filterStatus === 'all' ? ' active' : ''}`} onClick={() => setFilterStatus('all')}>All</button></li>
+                  <li><button className={`dropdown-item${filterStatus === 'upcoming' ? ' active' : ''}`} onClick={() => setFilterStatus('upcoming')}>Upcoming</button></li>
+                  <li><button className={`dropdown-item${filterStatus === 'past' ? ' active' : ''}`} onClick={() => setFilterStatus('past')}>Past</button></li>
+                </ul>
+              </div>
             </div>
             {user && user.role === 'organizer' && (
               <div className="col-auto">
