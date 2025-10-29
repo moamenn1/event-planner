@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from schemas import UserCreate, UserOut, Token
+from schemas import UserCreate, UserLogin, UserOut, Token
 from database import db
 from security import hash_password, verify_password, create_access_token
 from bson import ObjectId
@@ -22,7 +22,7 @@ async def signup(payload: UserCreate):
     return {"id": str(result.inserted_id), "username": payload.username, "email": payload.email}
 
 @router.post("/login", response_model=Token)
-async def login(form_data: UserCreate):
+async def login(form_data: UserLogin):
     users = db.users
     user = await users.find_one({"username": form_data.username})
     if not user or not verify_password(form_data.password, user.get("password", "")):

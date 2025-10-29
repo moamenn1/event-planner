@@ -1,16 +1,25 @@
 import React, { useState } from 'react';
+import { authAPI, userAPI } from '../services/api';
 
 function Login({ onNavigate, onAuth }) {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mock login: determine role based on email
-    const mockRole = email.includes("organizer") ? "organizer" : "user";
-    const username = email.split("@")[0];
-    if (onAuth) {
-      onAuth({ username, email, role: mockRole });
+    setError("");
+    
+    try {
+      // Call real API
+      await authAPI.login(username, password);
+      // Get user info
+      const userData = await userAPI.getMe();
+      if (onAuth) {
+        onAuth({ username: userData.username, email: userData.email, role: userData.role || 'user' });
+      }
+    } catch (err) {
+      setError("Invalid credentials. Please try again.");
     }
   };
 
@@ -19,14 +28,13 @@ function Login({ onNavigate, onAuth }) {
       <h2 className="text-center mb-4">Login</h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label htmlFor="exampleInputEmail1" className="form-label">Email address</label>
+          <label htmlFor="username" className="form-label">Username</label>
           <input
-            type="email"
+            type="text"
             className="form-control"
-            id="exampleInputEmail1"
-            aria-describedby="emailHelp"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
         </div>
@@ -41,6 +49,7 @@ function Login({ onNavigate, onAuth }) {
             required
           />
         </div>
+        {error && <div className="text-danger mb-2">{error}</div>}
         <button type="submit" className="btn btn-primary w-100">Login</button>
       </form>
       <p className="text-center mt-3 mb-0">
