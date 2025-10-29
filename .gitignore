@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/app/__pycache__/config.cpython-313.pyc
+backend/app/__pycache__/database.cpython-313.pyc
+backend/app/__pycache__/main.cpython-313.pyc
+backend/app/__pycache__/schemas.cpython-313.pyc
+backend/app/__pycache__/security.cpython-313.pyc
+backend/app/routes/__pycache__/__init__.cpython-313.pyc
+backend/app/routes/__pycache__/auth.cpython-313.pyc
+backend/app/routes/__pycache__/events.cpython-313.pyc
+backend/app/routes/__pycache__/users.cpython-313.pyc
