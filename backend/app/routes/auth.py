@@ -8,6 +8,7 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserOut)
 async def signup(payload: UserCreate):
+    from datetime import datetime
     users = db.users
     # check username or email exists
     if await users.find_one({"username": payload.username}) or await users.find_one({"email": payload.email}):
@@ -16,10 +17,11 @@ async def signup(payload: UserCreate):
         "username": payload.username,
         "email": payload.email,
         "password": hash_password(payload.password),
-        "created_at": None,
+        "role": payload.role,
+        "created_at": datetime.utcnow(),
     }
     result = await users.insert_one(user_doc)
-    return {"id": str(result.inserted_id), "username": payload.username, "email": payload.email}
+    return {"id": str(result.inserted_id), "username": payload.username, "email": payload.email, "role": payload.role}
 
 @router.post("/login", response_model=Token)
 async def login(form_data: UserLogin):

@@ -6,6 +6,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3)
     email: EmailStr
     password: str = Field(..., min_length=6)
+    role: str = Field(default="user")  # "user" or "organizer"
 
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=3)
@@ -15,6 +16,7 @@ class UserOut(BaseModel):
     id: str
     username: str
     email: EmailStr
+    role: str
 
 class Token(BaseModel):
     access_token: str
@@ -29,10 +31,13 @@ class EventCreate(BaseModel):
 
 class EventOut(EventCreate):
     id: str
-    organizer: str
-    attendees: int
+    organizer: str  # username of the organizer
+    organizer_id: str  # user ID of organizer
+    attendees: List[str] = []  # list of usernames invited as attendees
     rsvps: Dict[str, List[str]] = {"going": [], "maybe": [], "pass": []}
 
 class RSVPRequest(BaseModel):
     response: str  # "going", "maybe", "pass"
-    username: str
+
+class InviteRequest(BaseModel):
+    usernames: List[str]  # list of usernames to invite
