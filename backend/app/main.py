@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes import auth, users, events
-from config import settings
+from .routes import auth, users, events
+from .config import settings
 
 app = FastAPI(title="Event Planner API", version="1.0")
 

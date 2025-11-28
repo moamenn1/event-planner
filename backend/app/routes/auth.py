@@ -1,7 +1,13 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+<<<<<<< Updated upstream
 from schemas import UserCreate, UserOut, Token
 from database import db
 from security import hash_password, verify_password, create_access_token
+=======
+from ..schemas import UserCreate, UserLogin, UserOut, Token
+from ..database import db
+from ..security import hash_password, verify_password, create_access_token
+>>>>>>> Stashed changes
 from bson import ObjectId
 
 router = APIRouter()

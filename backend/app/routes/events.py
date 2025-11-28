@@ -1,8 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from bson import ObjectId
+<<<<<<< Updated upstream
 from database import db
 from schemas import EventCreate, EventOut, RSVPRequest
 from security import decode_access_token
+=======
+from ..database import db
+from ..schemas import EventCreate, EventOut, RSVPRequest, InviteRequest
+from ..security import decode_access_token
+from typing import Optional
+>>>>>>> Stashed changes
 
 router = APIRouter()
 
@@ -40,6 +47,59 @@ async def create_event(event: EventCreate, authorization: str = Header(None)):
     res = await db.events.insert_one(event_doc)
     return {"id": str(res.inserted_id), "message": "Event created"}
 
+@router.get("/search")
+async def search_events(
+    keyword: Optional[str] = Query(None),
+    date: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),  
+    authorization: str = Header(None)
+):
+    user_info = await require_user(authorization)
+    
+    query = {}
+    
+    if keyword:
+        query["$or"] = [
+            {"title": {"$regex": keyword, "$options": "i"}},
+            {"description": {"$regex": keyword, "$options": "i"}}
+        ]
+    
+    if date:
+        query["date"] = date
+    
+    if role:
+        query["organizer"] = role
+    
+    items = []
+    async for doc in db.events.find(query).sort("date", -1):
+        doc["id"] = str(doc["_id"])
+        doc.pop("_id", None)
+        items.append(doc)
+    
+    return items
+
+@router.get("/my/organized")
+async def my_organized_events(authorization: str = Header(None)):
+    user_info = await require_user(authorization)
+    
+    items = []
+    async for doc in db.events.find({"organizer": user_info["username"]}).sort("date", -1):
+        doc["id"] = str(doc["_id"])
+        doc.pop("_id", None)
+        items.append(doc)
+    return items
+
+@router.get("/my/invited")
+async def my_invited_events(authorization: str = Header(None)):
+    user_info = await require_user(authorization)
+    
+    items = []
+    async for doc in db.events.find({"attendees": user_info["username"]}).sort("date", -1):
+        doc["id"] = str(doc["_id"])
+        doc.pop("_id", None)
+        items.append(doc)
+    return items
+
 @router.get("/{event_id}")
 async def get_event(event_id: str):
     doc = await db.events.find_one({"_id": ObjectId(event_id)})
@@ -50,8 +110,13 @@ async def get_event(event_id: str):
 
 @router.delete("/{event_id}")
 async def delete_event(event_id: str, authorization: str = Header(None)):
+<<<<<<< Updated upstream
     user_id = await require_user(authorization)
     # allow delete if organizer
+=======
+    user_info = await require_user(authorization)
+    
+>>>>>>> Stashed changes
     doc = await db.events.find_one({"_id": ObjectId(event_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -101,5 +166,8 @@ async def invite(event_id: str, body: dict, authorization: str = Header(None)):
         "message": message,
         "created_at": None
     }
+<<<<<<< Updated upstream
     await db.invites.insert_one(invite_doc)
     return {"message": "Invite recorded"}
+=======
+>>>>>>> Stashed changes

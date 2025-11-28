@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta, timezone
 import jwt
+<<<<<<< Updated upstream
 from passlib.context import CryptContext
 from config import settings
+=======
+import bcrypt
+from .config import settings
+>>>>>>> Stashed changes
 from typing import Optional
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
