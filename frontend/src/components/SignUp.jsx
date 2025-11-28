@@ -36,6 +36,10 @@ function SignUp({ onNavigate, onAuth }) {
         if (onAuth) {
           onAuth({ username, email, role });
         }
+        // Navigate to dashboard after successful login
+        if (onNavigate) {
+          onNavigate('dashboard');
+        }
       } catch (loginErr) {
         console.error("Login error:", loginErr);
         setError("Account created but login failed: " + (loginErr.message || "Please try logging in manually."));

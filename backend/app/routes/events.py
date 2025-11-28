@@ -220,13 +220,3 @@ async def get_event_attendees(event_id: str, authorization: str = Header(None)):
         "total_not_going": len(rsvps.get("pass", [])),
         "attendees": attendee_list
     }
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-    await db.invites.insert_one(invite_doc)
-    return {"message": "Invite recorded"}
-=======
->>>>>>> Stashed changes
-=======
-
-        "attendees": attendee_list
-    }
