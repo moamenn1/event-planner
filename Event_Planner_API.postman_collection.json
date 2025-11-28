@@ -1,0 +1,648 @@
+{
+	"info": {
+		"_postman_id": "event-planner-api-2024",
+		"name": "Event Planner API Collection",
+		"description": "Complete API collection for Event Planner backend with User Management, Event Management, Response Management, and Search/Filtering features.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Sign Up",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"role\": \"user\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"signup"
+							]
+						},
+						"description": "Register a new user. Role can be 'user' or 'organizer'."
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Up (Organizer)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"event_organizer\",\n  \"email\": \"organizer@example.com\",\n  \"password\": \"OrganizerPass123!\",\n  \"role\": \"organizer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"signup"
+							]
+						},
+						"description": "Register a new organizer who can create events."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.environment.set(\"auth_token\", jsonData.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with username and password. Returns JWT access token that is automatically saved to environment."
+					},
+					"response": []
+				}
+			],
+			"description": "User authentication endpoints for signup and login."
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"me"
+							]
+						},
+						"description": "Get current authenticated user profile information."
+					},
+					"response": []
+				}
+			],
+			"description": "User profile management endpoints."
+		},
+		{
+			"name": "Event Management",
+			"item": [
+				{
+					"name": "Create Event (Organizer Only)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Tech Conference 2025\",\n  \"date\": \"2025-12-15\",\n  \"time\": \"09:00 AM\",\n  \"location\": \"Convention Center, Downtown\",\n  \"description\": \"Annual technology conference featuring the latest innovations in AI and cloud computing.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/events/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								""
+							]
+						},
+						"description": "Create a new event. Only users with 'organizer' role can create events."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Events",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/events/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								""
+							]
+						},
+						"description": "Get a list of all events in the system."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Event Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}"
+							]
+						},
+						"description": "Get details of a specific event by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Organized Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/my/organized",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"my",
+								"organized"
+							]
+						},
+						"description": "Get all events organized by the current user."
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Invited Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/my/invited",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"my",
+								"invited"
+							]
+						},
+						"description": "Get all events where the current user is invited as an attendee."
+					},
+					"response": []
+				},
+				{
+					"name": "Invite Users to Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usernames\": [\"john_doe\", \"jane_smith\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}/invite",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}",
+								"invite"
+							]
+						},
+						"description": "Invite users to an event. Only the event organizer can invite users."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Event",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}"
+							]
+						},
+						"description": "Delete an event. Only the event organizer can delete their own events."
+					},
+					"response": []
+				}
+			],
+			"description": "Event management endpoints for creating, viewing, and managing events."
+		},
+		{
+			"name": "Response Management",
+			"item": [
+				{
+					"name": "RSVP to Event - Going",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"response\": \"going\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}/rsvp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}",
+								"rsvp"
+							]
+						},
+						"description": "RSVP to an event with 'going' status."
+					},
+					"response": []
+				},
+				{
+					"name": "RSVP to Event - Maybe",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"response\": \"maybe\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}/rsvp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}",
+								"rsvp"
+							]
+						},
+						"description": "RSVP to an event with 'maybe' status."
+					},
+					"response": []
+				},
+				{
+					"name": "RSVP to Event - Not Going",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"response\": \"pass\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}/rsvp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}",
+								"rsvp"
+							]
+						},
+						"description": "RSVP to an event with 'not going' status (pass)."
+					},
+					"response": []
+				},
+				{
+					"name": "View Event Attendees (Organizer Only)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/{{event_id}}/attendees",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"{{event_id}}",
+								"attendees"
+							]
+						},
+						"description": "View the list of attendees and their RSVP statuses. Only the event organizer can access this."
+					},
+					"response": []
+				}
+			],
+			"description": "Response management endpoints for RSVP and viewing attendee statuses."
+		},
+		{
+			"name": "Search & Filtering",
+			"item": [
+				{
+					"name": "Search by Keyword",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/search?keyword=conference",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"search"
+							],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "conference"
+								}
+							]
+						},
+						"description": "Search events by keyword in title or description (case-insensitive)."
+					},
+					"response": []
+				},
+				{
+					"name": "Filter by Date",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/search?date=2025-12-15",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"search"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-12-15"
+								}
+							]
+						},
+						"description": "Filter events by specific date."
+					},
+					"response": []
+				},
+				{
+					"name": "Filter by Organizer",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/search?role=event_organizer",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"search"
+							],
+							"query": [
+								{
+									"key": "role",
+									"value": "event_organizer"
+								}
+							]
+						},
+						"description": "Filter events by organizer username."
+					},
+					"response": []
+				},
+				{
+					"name": "Advanced Search (Combined Filters)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/events/search?keyword=tech&date=2025-12-15&role=event_organizer",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"events",
+								"search"
+							],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "tech"
+								},
+								{
+									"key": "date",
+									"value": "2025-12-15"
+								},
+								{
+									"key": "role",
+									"value": "event_organizer"
+								}
+							]
+						},
+						"description": "Advanced search combining keyword, date, and organizer filters."
+					},
+					"response": []
+				}
+			],
+			"description": "Advanced search and filtering endpoints for events."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "event_id",
+			"value": "",
+			"type": "string",
+			"description": "ID of the event to use in requests (copy from create event response)"
+		}
+	]
+}

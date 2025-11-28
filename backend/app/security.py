@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
-from config import settings
+from .config import settings
 from typing import Optional
 
 def hash_password(password: str) -> str:

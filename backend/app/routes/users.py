@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Header, HTTPException
-from security import decode_access_token
-from database import db
+from ..security import decode_access_token
+from ..database import db
 from bson import ObjectId
 
 router = APIRouter()

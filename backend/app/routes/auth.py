@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from schemas import UserCreate, UserLogin, UserOut, Token
-from database import db
-from security import hash_password, verify_password, create_access_token
+from ..schemas import UserCreate, UserLogin, UserOut, Token
+from ..database import db
+from ..security import hash_password, verify_password, create_access_token
 from bson import ObjectId
 
 router = APIRouter()
