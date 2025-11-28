@@ -6,19 +6,17 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3)
     email: EmailStr
     password: str = Field(..., min_length=6)
-<<<<<<< Updated upstream
-=======
-    role: str = Field(default="user")  
+    role: str = Field(default="user")  # "user" or "organizer"
 
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=3)
     password: str = Field(..., min_length=6)
->>>>>>> Stashed changes
 
 class UserOut(BaseModel):
     id: str
     username: str
     email: EmailStr
+    role: str
 
 class Token(BaseModel):
     access_token: str
@@ -26,30 +24,20 @@ class Token(BaseModel):
 
 class EventCreate(BaseModel):
     title: str
-    date: str   
+    date: str   # you can switch to datetime if you parse client date
     time: Optional[str] = None
     location: Optional[str] = None
     description: Optional[str] = None
 
 class EventOut(EventCreate):
     id: str
-<<<<<<< Updated upstream
-    organizer: str
-    attendees: int
+    organizer: str  # username of the organizer
+    organizer_id: str  # user ID of organizer
+    attendees: List[str] = []  # list of usernames invited as attendees
     rsvps: Dict[str, List[str]] = {"going": [], "maybe": [], "pass": []}
 
 class RSVPRequest(BaseModel):
     response: str  # "going", "maybe", "pass"
-    username: str
-=======
-    organizer: str  
-    organizer_id: str  
-    attendees: List[str] = []  
-    rsvps: Dict[str, List[str]] = {"going": [], "maybe": [], "pass": []}
-
-class RSVPRequest(BaseModel):
-    response: str 
 
 class InviteRequest(BaseModel):
-    usernames: List[str]  
->>>>>>> Stashed changes
+    usernames: List[str]  # list of usernames to invite

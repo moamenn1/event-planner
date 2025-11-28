@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authAPI } from '../services/api';
 
 function SignUp({ onNavigate, onAuth }) {
   const [username, setUsername] = useState("");
@@ -10,7 +11,7 @@ function SignUp({ onNavigate, onAuth }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim()) {
       setError("Username is required");
@@ -21,9 +22,32 @@ function SignUp({ onNavigate, onAuth }) {
       return;
     }
     setError("");
-    // Simulate signup: pass user data to parent
-    if (onAuth) {
-      onAuth({ username, email, role });
+    
+    try {
+      // Call real API
+      console.log("Attempting signup...");
+      const userData = await authAPI.signup(username, email, password, role);
+      console.log("Signup successful, attempting auto-login...");
+      
+      // Auto-login after signup
+      try {
+        const loginData = await authAPI.login(username, password);
+        console.log("Login successful!");
+        if (onAuth) {
+          onAuth({ username, email, role });
+        }
+      } catch (loginErr) {
+        console.error("Login error:", loginErr);
+        setError("Account created but login failed: " + (loginErr.message || "Please try logging in manually."));
+        // Navigate to login page after a delay
+        setTimeout(() => {
+          if (onNavigate) onNavigate('login');
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      const errorMsg = err.message || "Signup failed. Please try again.";
+      setError(errorMsg.includes("already exists") ? "Username or email already exists. Try a different one." : errorMsg);
     }
   };
 

@@ -26,4 +26,9 @@ async def get_current_user(authorization: str = Header(None)):
 async def me(current_user=Depends(get_current_user)):
     current_user.pop("password", None)
     current_user["id"] = str(current_user.get("_id"))
-    return {"id": current_user["id"], "username": current_user["username"], "email": current_user["email"]}
+    return {
+        "id": current_user["id"], 
+        "username": current_user["username"], 
+        "email": current_user["email"],
+        "role": current_user.get("role", "user")
+    }

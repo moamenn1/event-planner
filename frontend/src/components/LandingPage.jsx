@@ -1,40 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { eventAPI } from '../services/api';
 
 function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: "Tech Conference 2024",
-      date: "Dec 28, 2024",
-      time: "10:00 AM",
-      location: "San Francisco, CA",
-      organizer: "john_organizer",
-      attendees: 124,
-      rsvps: { going: [], maybe: [], pass: [] },
-    },
-    {
-      id: 2,
-      title: "Design Meetup",
-      date: "Jan 5, 2025",
-      time: "6:00 PM",
-      location: "New York, NY",
-      organizer: "jane_designer",
-      attendees: 45,
-      rsvps: { going: [], maybe: [], pass: [] },
-    },
-    {
-      id: 3,
-      title: "Startup Networking",
-      date: "Jan 12, 2025",
-      time: "7:00 PM",
-      location: "Austin, TX",
-      organizer: "alex_startup",
-      attendees: 89,
-      rsvps: { going: [], maybe: [], pass: [] },
-    },
-  ]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all"); // all, organized, invited
@@ -51,24 +23,45 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
 
-  const handleRSVP = (eventId, response) => {
+  // Load events on mount and when tab changes
+  useEffect(() => {
+    loadEvents();
+  }, [activeTab]);
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      let data;
+      if (activeTab === "organized") {
+        data = await eventAPI.getMyOrganized();
+      } else if (activeTab === "invited") {
+        data = await eventAPI.getMyInvited();
+      } else {
+        data = await eventAPI.getAll();
+      }
+      setEvents(data);
+    } catch (err) {
+      console.error("Failed to load events:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRSVP = async (eventId, response) => {
     if (!user) {
       alert("Please sign in to RSVP");
       return;
     }
-    setEvents(events.map(event => {
-      if (event.id === eventId) {
-        const newRsvps = { ...event.rsvps };
-        // Remove user from all RSVP lists
-        Object.keys(newRsvps).forEach(key => {
-          newRsvps[key] = newRsvps[key].filter(u => u !== user.username);
-        });
-        // Add to selected response
-        newRsvps[response].push(user.username);
-        return { ...event, rsvps: newRsvps };
-      }
-      return event;
-    }));
+    try {
+      await eventAPI.rsvp(eventId, response);
+      // Refresh events to get updated RSVP status
+      await loadEvents();
+    } catch (err) {
+      console.error("Failed to RSVP:", err);
+      alert(err.message);
+    }
   };
 
   const getUserRSVP = (event) => {
@@ -91,46 +84,64 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
     setInviteMsg("");
   };
 
-  const handleSendInvite = (e) => {
+  const handleSendInvite = async (e) => {
     e.preventDefault();
     if (!inviteUsername.trim()) {
       setInviteMsg("Please enter a username.");
       return;
     }
-    // Mock: Add invite to event (not persisted)
-    setInviteMsg(`Invite sent to ${inviteUsername}!`);
-    setTimeout(closeInviteModal, 1200);
+    try {
+      // Split by comma and trim whitespace
+      const usernames = inviteUsername.split(',').map(u => u.trim()).filter(u => u);
+      await eventAPI.invite(inviteModal.eventId, usernames);
+      setInviteMsg(`Invite sent to ${usernames.join(', ')}!`);
+      setTimeout(closeInviteModal, 1200);
+    } catch (err) {
+      console.error("Failed to send invite:", err);
+      setInviteMsg(err.message);
+    }
   };
 
-  const handleCreateEvent = (e) => {
+  const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.date || !form.time || !form.location.trim()) {
       alert("Please fill in all required fields.");
       return;
     }
-    const newEvent = {
-      id: Date.now(),
-      title: form.title,
-      date: form.date instanceof Date ? form.date.toLocaleDateString() : form.date,
-      time: form.time,
-      location: form.location,
-      description: form.description,
-      organizer: user.username,
-      attendees: 0,
-      rsvps: { going: [], maybe: [], pass: [] },
-    };
-    setEvents([...events, newEvent]);
-    setForm({ title: "", date: null, time: "10:00", location: "", description: "" });
-    setShowCreateModal(false);
+    try {
+      const eventData = {
+        title: form.title,
+        date: form.date instanceof Date ? form.date.toISOString().split('T')[0] : form.date,
+        time: form.time,
+        location: form.location,
+        description: form.description,
+      };
+      await eventAPI.create(eventData);
+      setForm({ title: "", date: null, time: "10:00", location: "", description: "" });
+      setShowCreateModal(false);
+      // Reload events
+      await loadEvents();
+    } catch (err) {
+      console.error("Failed to create event:", err);
+      alert(err.message);
+    }
   };
 
   const [deleteModal, setDeleteModal] = useState({ open: false, eventId: null });
   const handleDeleteEvent = (eventId) => {
     setDeleteModal({ open: true, eventId });
   };
-  const confirmDeleteEvent = () => {
-    setEvents(events.filter(e => e.id !== deleteModal.eventId));
-    setDeleteModal({ open: false, eventId: null });
+  const confirmDeleteEvent = async () => {
+    try {
+      await eventAPI.delete(deleteModal.eventId);
+      setDeleteModal({ open: false, eventId: null });
+      // Reload events
+      await loadEvents();
+    } catch (err) {
+      console.error("Failed to delete event:", err);
+      alert(err.message);
+      setDeleteModal({ open: false, eventId: null });
+    }
   };
   const cancelDeleteEvent = () => {
     setDeleteModal({ open: false, eventId: null });
@@ -144,20 +155,25 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
     return eventDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
   };
 
-  const filteredEvents = events.filter(event => {
-    // Filter by search term
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          event.location.toLowerCase().includes(searchTerm.toLowerCase());
-    if (!matchesSearch) return false;
-
-    // Filter by tab
-    if (!user) return activeTab === "all";
-    if (activeTab === "organized") {
-      if (event.organizer !== user.username) return false;
-    } else if (activeTab === "invited") {
-      if (getUserRSVP(event) === null) return false;
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) {
+      loadEvents();
+      return;
     }
+    try {
+      setLoading(true);
+      const results = await eventAPI.search(searchTerm);
+      setEvents(results);
+    } catch (err) {
+      console.error("Search failed:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const filteredEvents = events.filter(event => {
     // Filter by status
     if (filterStatus === 'past' && !isEventPast(event)) return false;
     if (filterStatus === 'upcoming' && isEventPast(event)) return false;
@@ -207,7 +223,7 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
           {/* Search and Create */}
           <div className="row justify-content-center align-items-center g-3 mb-4">
             <div className="col-md-6">
-              <div className="input-group shadow-sm">
+              <form onSubmit={handleSearch} className="input-group shadow-sm">
                 <span className="input-group-text bg-white border-end-0">
                   <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
@@ -216,11 +232,13 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
                 <input
                   type="text"
                   className="form-control border-start-0 py-2"
-                  placeholder="Search events..."
+                  placeholder="Search events by title or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch(e)}
                 />
-              </div>
+                <button type="submit" className="btn btn-primary">Search</button>
+              </form>
             </div>
             <div className="col-auto">
               <div className="dropdown">
@@ -247,16 +265,33 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
+
+        {/* Loading Display */}
+        {loading && (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="mb-0">Upcoming Events</h4>
-          <div className="btn-group" role="group">
-            <button
-              className={`btn ${activeTab === 'all' ? 'btn-dark' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveTab('all')}
-            >
-              All
-            </button>
+        {!loading && (
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h4 className="mb-0">Upcoming Events</h4>
+            <div className="btn-group" role="group">
+              <button
+                className={`btn ${activeTab === 'all' ? 'btn-dark' : 'btn-outline-secondary'}`}
+                onClick={() => setActiveTab('all')}
+              >
+                All
+              </button>
             {user && user.role === 'organizer' && (
               <button
                 className={`btn ${activeTab === 'organized' ? 'btn-dark' : 'btn-outline-secondary'}`}
@@ -275,14 +310,24 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
             )}
           </div>
         </div>
+        )}
 
         {/* Event Cards */}
+        {!loading && (
         <div className="row g-4">
           {filteredEvents.map(event => {
             const userRsvp = getUserRSVP(event);
             const isOrganizer = user && event.organizer === user.username;
             const userIsAttendee = user && (userRsvp === 'going' || userRsvp === 'maybe');
             const userIsNotGoing = user && userRsvp === 'pass';
+            
+            // Debug logging
+            if (event.title === 'aaaa' || event.title === 'adada') {
+              console.log('Event:', event.title);
+              console.log('  event.organizer:', event.organizer);
+              console.log('  user.username:', user?.username);
+              console.log('  isOrganizer:', isOrganizer);
+            }
 
             return (
               <div className="col-md-6 col-lg-4" key={event.id}>
@@ -317,7 +362,7 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
                         <path fillRule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/>
                         <path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>
                       </svg>
-                      {event.attendees} attending
+                      {event.rsvps?.going?.length || 0} going • {event.attendees?.length || 0} invited
                     </div>
 
                     {/* RSVP Buttons */}
@@ -367,8 +412,9 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
             );
           })}
         </div>
+        )}
 
-        {filteredEvents.length === 0 && (
+        {!loading && filteredEvents.length === 0 && (
           <div className="text-center text-muted py-5">
             <p className="fs-5">No events found</p>
           </div>

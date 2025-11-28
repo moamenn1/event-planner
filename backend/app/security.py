@@ -1,21 +1,17 @@
 from datetime import datetime, timedelta, timezone
 import jwt
-<<<<<<< Updated upstream
-from passlib.context import CryptContext
-from config import settings
-=======
 import bcrypt
 from .config import settings
->>>>>>> Stashed changes
 from typing import Optional
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # Truncate password to 72 bytes if needed (bcrypt limit)
+    password_bytes = password.encode('utf-8')[:72]
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    password_bytes = plain.encode('utf-8')[:72]
+    return bcrypt.checkpw(password_bytes, hashed.encode('utf-8'))
 
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
     expire = datetime.now(timezone.utc) + (expires_delta if expires_delta else timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
