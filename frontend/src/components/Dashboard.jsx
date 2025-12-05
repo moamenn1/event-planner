@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import axios from "axios";
+import { eventAPI } from '../services/api';
 
 function Dashboard({ user, onLogout }) {
   const [events, setEvents] = useState([]);
   const [inviteModal, setInviteModal] = useState({ open: false, eventId: null });
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  const [inviteError, setInviteError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -23,40 +24,57 @@ function Dashboard({ user, onLogout }) {
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
 
   useEffect(() => {
-    // Fetch events organized by the user
-    const fetchEvents = async () => {
-      try {
-        const response = await axios.get('/api/events');
-        setEvents(response.data);
-      } catch (err) {
-        console.error('Failed to fetch events:', err);
-      }
-    };
-
     fetchEvents();
   }, []);
+
+  const fetchEvents = async () => {
+    try {
+      if (user.role === 'organizer') {
+        const data = await eventAPI.getMyOrganized();
+        setEvents(data);
+      } else {
+        const data = await eventAPI.getMyInvited();
+        setEvents(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+    }
+  };
 
   const openInviteModal = (eventId) => {
     setInviteModal({ open: true, eventId });
     setInviteUsername("");
     setInviteMsg("");
+    setInviteError("");
   };
 
   const closeInviteModal = () => {
     setInviteModal({ open: false, eventId: null });
     setInviteUsername("");
     setInviteMsg("");
+    setInviteError("");
   };
 
-  const handleSendInvite = (e) => {
+  const handleSendInvite = async (e) => {
     e.preventDefault();
+    setInviteError("");
+    setInviteMsg("");
+    
     if (!inviteUsername.trim()) {
-      setInviteMsg("Please enter a username.");
+      setInviteError("Please enter a username.");
       return;
     }
-    // Mock: Add invite to event (not persisted)
-    setInviteMsg(`Invite sent to ${inviteUsername}!`);
-    setTimeout(closeInviteModal, 1200);
+
+    try {
+      await eventAPI.invite(inviteModal.eventId, [inviteUsername.trim()]);
+      setInviteMsg(`Invite sent to ${inviteUsername}!`);
+      setTimeout(() => {
+        closeInviteModal();
+        fetchEvents(); // Refresh events to show updated attendee count
+      }, 1200);
+    } catch (err) {
+      setInviteError(err.message || 'Failed to send invite');
+    }
   };
 
   const handleFormChange = e => {
@@ -69,41 +87,45 @@ function Dashboard({ user, onLogout }) {
     setForm({ ...form, time: e.target.value });
   };
 
-  const handleCreateEvent = e => {
+  const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.date || !form.time || !form.location.trim()) {
       setFormError("Please fill in all required fields.");
       return;
     }
     setFormError("");
-    setEvents([
-      ...events,
-      {
-        ...form,
-        id: Date.now(),
-        organizer: user.username,
-        attendees: [],
-      }
-    ]);
-    setForm({ title: "", date: null, time: "10:00", location: "", description: "" });
-    setShowForm(false);
-    setShowBackAfterCreate(true);
+
+    try {
+      // Format date as YYYY-MM-DD for backend
+      const formattedDate = form.date.toISOString().split('T')[0];
+      
+      await eventAPI.create({
+        title: form.title,
+        date: formattedDate,
+        time: form.time,
+        location: form.location,
+        description: form.description || ""
+      });
+
+      // Reset form and refresh events
+      setForm({ title: "", date: null, time: "21:00", location: "", description: "" });
+      setShowForm(false);
+      setShowBackAfterCreate(true);
+      await fetchEvents();
+    } catch (err) {
+      setFormError(err.message || 'Failed to create event');
+    }
   };
 
-  const handleViewInvites = async (eventId) => {
+  const handleViewAttendees = async (eventId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/events/${eventId}/attendees`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const data = await eventAPI.getAttendees(eventId);
       setSelectedEvent(eventId);
-      setAttendeesData(response.data);
+      setAttendeesData(data);
       setShowAttendeesModal(true);
     } catch (err) {
       console.error('Failed to fetch attendees:', err);
-      alert('Failed to fetch attendees: ' + (err.response?.data?.detail || err.message));
+      alert('Failed to fetch attendees: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -111,6 +133,19 @@ function Dashboard({ user, onLogout }) {
     setShowAttendeesModal(false);
     setSelectedEvent(null);
     setAttendeesData(null);
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!window.confirm('Are you sure you want to delete this event?')) {
+      return;
+    }
+    
+    try {
+      await eventAPI.delete(eventId);
+      await fetchEvents();
+    } catch (err) {
+      alert('Failed to delete event: ' + (err.message || 'Unknown error'));
+    }
   };
 
     return (
@@ -179,38 +214,50 @@ function Dashboard({ user, onLogout }) {
                 <div className="text-muted rounded-3 p-3 bg-light">No events yet.</div>
               ) : (
                 <ul className="list-group mb-3 border-0">
-                  {events.map(ev => (
-                    <li key={ev.id} className="list-group-item rounded-4 mb-3 shadow-sm border-0 p-3 position-relative">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <div className="fw-bold fs-5">{ev.title}</div>
-                        {user.role === 'organizer' && (
-                          <button className="btn btn-outline-primary btn-sm rounded-pill px-3" type="button" title="Invite" onClick={() => openInviteModal(ev.id)}>Invite</button>
-                        )}
-                      </div>
-                      <div className="mb-1"><span className="fw-semibold">date:</span> {ev.date instanceof Date ? ev.date.toLocaleDateString() : ev.date}</div>
-                      <div className="mb-1"><span className="fw-semibold">time:</span> {ev.time}</div>
-                      <div className="mb-1"><span className="fw-semibold">location:</span> {ev.location}</div>
-                      {ev.description && <div className="small text-muted mt-2">{ev.description}</div>}
-                      {user.role === 'organizer' && (
-                        <div className="d-flex gap-2 mt-2">
-                          <button
-                            className="btn btn-info btn-sm rounded-pill px-3"
-                            type="button"
-                            onClick={() => handleViewInvites(ev.id)}
-                          >
-                            View Invites
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm rounded-pill px-3"
-                            type="button"
-                            onClick={() => setEvents(events.filter(e => e.id !== ev.id))}
-                          >
-                            Delete Event
-                          </button>
+                  {events.map(ev => {
+                    const totalInvited = ev.attendees?.length || 0;
+                    const totalGoing = ev.rsvps?.going?.length || 0;
+                    
+                    return (
+                      <li key={ev.id} className="list-group-item rounded-4 mb-3 shadow-sm border-0 p-3 position-relative">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <div className="fw-bold fs-5">{ev.title}</div>
+                          {user.role === 'organizer' && (
+                            <button className="btn btn-outline-primary btn-sm rounded-pill px-3" type="button" title="Invite" onClick={() => openInviteModal(ev.id)}>Invite</button>
+                          )}
                         </div>
-                      )}
-                    </li>
-                  ))}
+                        <div className="mb-1"><span className="fw-semibold">date:</span> {ev.date}</div>
+                        <div className="mb-1"><span className="fw-semibold">time:</span> {ev.time}</div>
+                        <div className="mb-1"><span className="fw-semibold">location:</span> {ev.location}</div>
+                        {ev.description && <div className="small text-muted mt-2">{ev.description}</div>}
+                        {user.role === 'organizer' && (
+                          <div className="mt-3">
+                            <div className="mb-2">
+                              <span className="badge bg-primary me-2">Invited: {totalInvited}</span>
+                              <span className="badge bg-success">Going: {totalGoing}</span>
+                            </div>
+                            <div className="d-flex gap-2">
+                              <button
+                                className="btn btn-info btn-sm rounded-pill px-3"
+                                type="button"
+                                onClick={() => handleViewAttendees(ev.id)}
+                                disabled={totalInvited === 0}
+                              >
+                                {totalInvited > 0 ? 'View Attendees' : 'No Invites Yet'}
+                              </button>
+                              <button
+                                className="btn btn-danger btn-sm rounded-pill px-3"
+                                type="button"
+                                onClick={() => handleDeleteEvent(ev.id)}
+                              >
+                                Delete Event
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </>
@@ -231,6 +278,7 @@ function Dashboard({ user, onLogout }) {
                     autoFocus
                   />
                   {inviteMsg && <div className="text-success mb-2">{inviteMsg}</div>}
+                  {inviteError && <div className="text-danger mb-2">{inviteError}</div>}
                   <div className="d-flex gap-2 mt-2">
                     <button type="submit" className="btn btn-primary rounded-pill px-4">Send Invite</button>
                     <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={closeInviteModal}>Cancel</button>
@@ -243,51 +291,61 @@ function Dashboard({ user, onLogout }) {
           {/* Attendees Modal */}
           {showAttendeesModal && attendeesData && (
             <div className="modal-backdrop-custom">
-              <div className="modal-dialog-custom card p-4 rounded-4 shadow-lg border-0" style={{ maxWidth: 500 }}>
-                <h5 className="mb-3">{attendeesData.event_title} - Invites</h5>
-                <div className="mb-3">
-                  <p className="mb-1"><strong>Total Invited:</strong> {attendeesData.total_invited}</p>
-                  <p className="mb-1"><strong>Going:</strong> {attendeesData.total_going}</p>
-                  <p className="mb-1"><strong>Maybe:</strong> {attendeesData.total_maybe}</p>
-                  <p className="mb-1"><strong>Not Going:</strong> {attendeesData.total_not_going}</p>
+              <div className="modal-dialog-custom card p-4 rounded-4 shadow-lg border-0" style={{ maxWidth: 600 }}>
+                <h5 className="mb-3">{attendeesData.event_title} - Attendee Details</h5>
+                
+                {/* Summary Stats */}
+                <div className="mb-3 p-3 bg-light rounded-3">
+                  <div className="row text-center">
+                    <div className="col-3">
+                      <div className="fw-bold fs-4">{attendeesData.total_invited}</div>
+                      <div className="small text-muted">Invited</div>
+                    </div>
+                    <div className="col-3">
+                      <div className="fw-bold fs-4 text-success">{attendeesData.total_going}</div>
+                      <div className="small text-muted">Going</div>
+                    </div>
+                    <div className="col-3">
+                      <div className="fw-bold fs-4 text-warning">{attendeesData.total_maybe}</div>
+                      <div className="small text-muted">Maybe</div>
+                    </div>
+                    <div className="col-3">
+                      <div className="fw-bold fs-4 text-danger">{attendeesData.total_not_going}</div>
+                      <div className="small text-muted">Not Going</div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Attendee List */}
                 <div className="mb-3">
-                  <h6>Invited Users:</h6>
+                  <h6 className="mb-3">Attendee List ({attendeesData.attendees.length} people):</h6>
                   {attendeesData.attendees.length === 0 ? (
-                    <p className="text-muted">No users invited yet.</p>
+                    <p className="text-muted text-center p-3">No users invited yet.</p>
                   ) : (
-                    <ul className="list-group">
-                      {attendeesData.attendees.map((attendee, idx) => (
-                        <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
-                          <span>{attendee.username}</span>
-                          <span className={`badge ${
-                            attendee.status === 'going' ? 'bg-success' :
-                            attendee.status === 'maybe' ? 'bg-warning' :
-                            attendee.status === 'not going' ? 'bg-danger' :
-                            'bg-secondary'
-                          }`}>
-                            {attendee.status}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      <ul className="list-group">
+                        {attendeesData.attendees.map((attendee, idx) => (
+                          <li key={idx} className="list-group-item d-flex justify-content-between align-items-center rounded-3 mb-2">
+                            <span className="fw-semibold">{attendee.username}</span>
+                            <span className={`badge rounded-pill px-3 ${
+                              attendee.status === 'going' ? 'bg-success' :
+                              attendee.status === 'maybe' ? 'bg-warning text-dark' :
+                              attendee.status === 'not going' ? 'bg-danger' :
+                              'bg-secondary'
+                            }`}>
+                              {attendee.status === 'no response' ? 'No Response' : attendee.status.charAt(0).toUpperCase() + attendee.status.slice(1)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
+                
                 <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={closeAttendeesModal}>Close</button>
               </div>
             </div>
           )}
-
-          {selectedEvent && (
-        <div>
-          <h3>Invites for Event {selectedEvent}</h3>
-          <ul>
-            {invites.map((invite) => (
-              <li key={invite.id}>{invite.email} - {invite.status}</li>
-            ))}
-          </ul>
-        </div>
-      )}
         </div>
       </div>
     );
