@@ -22,6 +22,11 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
 class EventCreate(BaseModel):
     title: str
     date: str   # you can switch to datetime if you parse client date

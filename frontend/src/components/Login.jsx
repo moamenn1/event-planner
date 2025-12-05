@@ -18,10 +18,14 @@ function Login({ onNavigate, onAuth }) {
 
     try {
       const loginData = await authAPI.login(identifier, password);
-      console.log("Login successful!");
+      console.log("Login successful!", loginData);
       if (onAuth) {
-        // Fetch user info from the response or make another call if needed
-        onAuth({ username: identifier, email: identifier.includes("@") ? identifier : "", role: "user" });
+        // Use the user data returned from the login response
+        onAuth({
+          username: loginData.user.username,
+          email: loginData.user.email,
+          role: loginData.user.role
+        });
       }
       if (onNavigate) {
         onNavigate('dashboard');
