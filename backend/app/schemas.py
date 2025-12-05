@@ -9,7 +9,7 @@ class UserCreate(BaseModel):
     role: str = Field(default="user")  # "user" or "organizer"
 
 class UserLogin(BaseModel):
-    username: str = Field(..., min_length=3)
+    identifier: str = Field(..., min_length=3)  # Can be username or email
     password: str = Field(..., min_length=6)
 
 class UserOut(BaseModel):
@@ -21,6 +21,11 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
 
 class EventCreate(BaseModel):
     title: str

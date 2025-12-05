@@ -22,6 +22,8 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
   const [inviteModal, setInviteModal] = useState({ open: false, eventId: null });
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+  const [attendeesData, setAttendeesData] = useState(null);
 
   // Load events on mount and when tab changes
   useEffect(() => {
@@ -95,11 +97,30 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
       const usernames = inviteUsername.split(',').map(u => u.trim()).filter(u => u);
       await eventAPI.invite(inviteModal.eventId, usernames);
       setInviteMsg(`Invite sent to ${usernames.join(', ')}!`);
-      setTimeout(closeInviteModal, 1200);
+      setTimeout(() => {
+        closeInviteModal();
+        loadEvents(); // Refresh to show updated counts
+      }, 1200);
     } catch (err) {
       console.error("Failed to send invite:", err);
       setInviteMsg(err.message);
     }
+  };
+
+  const handleViewAttendees = async (eventId) => {
+    try {
+      const data = await eventAPI.getAttendees(eventId);
+      setAttendeesData(data);
+      setShowAttendeesModal(true);
+    } catch (err) {
+      console.error('Failed to fetch attendees:', err);
+      alert('Failed to fetch attendees: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const closeAttendeesModal = () => {
+    setShowAttendeesModal(false);
+    setAttendeesData(null);
   };
 
   const handleCreateEvent = async (e) => {
@@ -391,18 +412,29 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
 
                     {/* Organizer Actions */}
                     {isOrganizer && (
-                      <div className="d-flex gap-2 mt-3">
+                      <div className="d-flex flex-column gap-2 mt-3">
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-sm btn-outline-primary rounded-pill flex-fill"
+                            onClick={() => openInviteModal(event.id)}
+                          >
+                            Invite
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-danger rounded-pill flex-fill"
+                            onClick={() => handleDeleteEvent(event.id)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
                         <button
-                          className="btn btn-sm btn-outline-primary rounded-pill flex-fill"
-                          onClick={() => openInviteModal(event.id)}
+                          className="btn btn-sm btn-info rounded-pill w-100"
+                          onClick={() => handleViewAttendees(event.id)}
+                          disabled={!event.attendees || event.attendees.length === 0}
                         >
-                          Invite
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-danger rounded-pill flex-fill"
-                          onClick={() => handleDeleteEvent(event.id)}
-                        >
-                          Cancel
+                          {event.attendees && event.attendees.length > 0 
+                            ? `View Attendees (${event.attendees.length})` 
+                            : 'No Attendees Yet'}
                         </button>
                       </div>
                     )}
@@ -545,6 +577,71 @@ function LandingPage({ user, onLogout, onShowSignUp, onShowSignIn }) {
                   <button className="btn btn-danger rounded-pill px-4 flex-fill" onClick={confirmDeleteEvent}>Yes, Cancel</button>
                   <button className="btn btn-outline-secondary rounded-pill px-4 flex-fill" onClick={cancelDeleteEvent}>No</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attendees Modal */}
+      {showAttendeesModal && attendeesData && (
+        <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={closeAttendeesModal}>
+          <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content rounded-4 border-0 shadow-lg">
+              <div className="modal-header border-0 pb-0">
+                <h5 className="modal-title fw-bold">{attendeesData.event_title} - Attendee Details</h5>
+                <button type="button" className="btn-close" onClick={closeAttendeesModal}></button>
+              </div>
+              <div className="modal-body">
+                {/* Summary Stats */}
+                <div className="mb-3 p-3 bg-light rounded-3">
+                  <div className="row text-center">
+                    <div className="col-3">
+                      <div className="fw-bold fs-4">{attendeesData.total_invited}</div>
+                      <div className="small text-muted">Invited</div>
+                    </div>
+                    <div className="col-3">
+                      <div className="fw-bold fs-4 text-success">{attendeesData.total_going}</div>
+                      <div className="small text-muted">Going</div>
+                    </div>
+                    <div className="col-3">
+                      <div className="fw-bold fs-4 text-warning">{attendeesData.total_maybe}</div>
+                      <div className="small text-muted">Maybe</div>
+                    </div>
+                    <div className="col-3">
+                      <div className="fw-bold fs-4 text-danger">{attendeesData.total_not_going}</div>
+                      <div className="small text-muted">Not Going</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attendee List */}
+                <div className="mb-3">
+                  <h6 className="mb-3">Attendee List ({attendeesData.attendees.length} people):</h6>
+                  {attendeesData.attendees.length === 0 ? (
+                    <p className="text-muted text-center p-3">No users invited yet.</p>
+                  ) : (
+                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      <ul className="list-group">
+                        {attendeesData.attendees.map((attendee, idx) => (
+                          <li key={idx} className="list-group-item d-flex justify-content-between align-items-center rounded-3 mb-2 border">
+                            <span className="fw-semibold">{attendee.username}</span>
+                            <span className={`badge rounded-pill px-3 ${
+                              attendee.status === 'going' ? 'bg-success' :
+                              attendee.status === 'maybe' ? 'bg-warning text-dark' :
+                              attendee.status === 'not going' ? 'bg-danger' :
+                              'bg-secondary'
+                            }`}>
+                              {attendee.status === 'no response' ? 'No Response' : attendee.status.charAt(0).toUpperCase() + attendee.status.slice(1)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                
+                <button type="button" className="btn btn-outline-secondary rounded-pill px-4 w-100" onClick={closeAttendeesModal}>Close</button>
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
-// API base URL
-const API_URL = 'http://127.0.0.1:8000/api';
+// API base URL - uses environment variable for Docker compatibility
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 // Helper to get auth token from localStorage
 const getAuthToken = () => localStorage.getItem('token');
@@ -33,11 +33,11 @@ export const authAPI = {
     return response.json();
   },
 
-  login: async (username, password) => {
+  login: async (identifier, password) => {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ identifier, password }),
     });
     if (!response.ok) throw new Error('Login failed');
     const data = await response.json();

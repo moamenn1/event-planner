@@ -17,6 +17,10 @@ function SignUp({ onNavigate, onAuth }) {
       setError("Username is required");
       return;
     }
+    if (!password.trim()) {
+      setError("Password cannot be empty or only spaces");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords don't match");
       return;
