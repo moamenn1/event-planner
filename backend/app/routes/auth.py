@@ -26,7 +26,13 @@ async def signup(payload: UserCreate):
 @router.post("/login", response_model=Token)
 async def login(form_data: UserLogin):
     users = db.users
-    user = await users.find_one({"username": form_data.username})
+    # Try to find user by username or email
+    user = await users.find_one({
+        "$or": [
+            {"username": form_data.identifier},
+            {"email": form_data.identifier}
+        ]
+    })
     if not user or not verify_password(form_data.password, user.get("password", "")):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     access_token = create_access_token(subject=str(user["_id"]))

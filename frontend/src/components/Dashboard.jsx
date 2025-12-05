@@ -1,13 +1,41 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import axios from "axios";
 
 function Dashboard({ user, onLogout }) {
-  // Mock event data in state
   const [events, setEvents] = useState([]);
   const [inviteModal, setInviteModal] = useState({ open: false, eventId: null });
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    date: null, // Date object
+    time: "21:00", // string, e.g. '21:00'
+    location: "",
+    description: ""
+  });
+  const [formError, setFormError] = useState("");
+  const [showBackAfterCreate, setShowBackAfterCreate] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [attendeesData, setAttendeesData] = useState(null);
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+
+  useEffect(() => {
+    // Fetch events organized by the user
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get('/api/events');
+        setEvents(response.data);
+      } catch (err) {
+        console.error('Failed to fetch events:', err);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
   const openInviteModal = (eventId) => {
     setInviteModal({ open: true, eventId });
     setInviteUsername("");
@@ -30,15 +58,6 @@ function Dashboard({ user, onLogout }) {
     setInviteMsg(`Invite sent to ${inviteUsername}!`);
     setTimeout(closeInviteModal, 1200);
   };
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    date: null, // Date object
-    time: "21:00", // string, e.g. '21:00'
-    location: "",
-    description: ""
-  });
-  const [formError, setFormError] = useState("");
 
   const handleFormChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -50,7 +69,6 @@ function Dashboard({ user, onLogout }) {
     setForm({ ...form, time: e.target.value });
   };
 
-  const [showBackAfterCreate, setShowBackAfterCreate] = useState(false);
   const handleCreateEvent = e => {
     e.preventDefault();
     if (!form.title.trim() || !form.date || !form.time || !form.location.trim()) {
@@ -70,6 +88,29 @@ function Dashboard({ user, onLogout }) {
     setForm({ title: "", date: null, time: "10:00", location: "", description: "" });
     setShowForm(false);
     setShowBackAfterCreate(true);
+  };
+
+  const handleViewInvites = async (eventId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/events/${eventId}/attendees`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      setSelectedEvent(eventId);
+      setAttendeesData(response.data);
+      setShowAttendeesModal(true);
+    } catch (err) {
+      console.error('Failed to fetch attendees:', err);
+      alert('Failed to fetch attendees: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  const closeAttendeesModal = () => {
+    setShowAttendeesModal(false);
+    setSelectedEvent(null);
+    setAttendeesData(null);
   };
 
     return (
@@ -151,14 +192,22 @@ function Dashboard({ user, onLogout }) {
                       <div className="mb-1"><span className="fw-semibold">location:</span> {ev.location}</div>
                       {ev.description && <div className="small text-muted mt-2">{ev.description}</div>}
                       {user.role === 'organizer' && (
-                        <button
-                          className="btn btn-danger btn-sm rounded-pill px-4 position-absolute delete-event-btn"
-                          style={{ bottom: 16, right: 16 }}
-                          type="button"
-                          onClick={() => setEvents(events.filter(e => e.id !== ev.id))}
-                        >
-                          Delete Event
-                        </button>
+                        <div className="d-flex gap-2 mt-2">
+                          <button
+                            className="btn btn-info btn-sm rounded-pill px-3"
+                            type="button"
+                            onClick={() => handleViewInvites(ev.id)}
+                          >
+                            View Invites
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm rounded-pill px-3"
+                            type="button"
+                            onClick={() => setEvents(events.filter(e => e.id !== ev.id))}
+                          >
+                            Delete Event
+                          </button>
+                        </div>
                       )}
                     </li>
                   ))}
@@ -190,6 +239,55 @@ function Dashboard({ user, onLogout }) {
               </div>
             </div>
           )}
+
+          {/* Attendees Modal */}
+          {showAttendeesModal && attendeesData && (
+            <div className="modal-backdrop-custom">
+              <div className="modal-dialog-custom card p-4 rounded-4 shadow-lg border-0" style={{ maxWidth: 500 }}>
+                <h5 className="mb-3">{attendeesData.event_title} - Invites</h5>
+                <div className="mb-3">
+                  <p className="mb-1"><strong>Total Invited:</strong> {attendeesData.total_invited}</p>
+                  <p className="mb-1"><strong>Going:</strong> {attendeesData.total_going}</p>
+                  <p className="mb-1"><strong>Maybe:</strong> {attendeesData.total_maybe}</p>
+                  <p className="mb-1"><strong>Not Going:</strong> {attendeesData.total_not_going}</p>
+                </div>
+                <div className="mb-3">
+                  <h6>Invited Users:</h6>
+                  {attendeesData.attendees.length === 0 ? (
+                    <p className="text-muted">No users invited yet.</p>
+                  ) : (
+                    <ul className="list-group">
+                      {attendeesData.attendees.map((attendee, idx) => (
+                        <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
+                          <span>{attendee.username}</span>
+                          <span className={`badge ${
+                            attendee.status === 'going' ? 'bg-success' :
+                            attendee.status === 'maybe' ? 'bg-warning' :
+                            attendee.status === 'not going' ? 'bg-danger' :
+                            'bg-secondary'
+                          }`}>
+                            {attendee.status}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={closeAttendeesModal}>Close</button>
+              </div>
+            </div>
+          )}
+
+          {selectedEvent && (
+        <div>
+          <h3>Invites for Event {selectedEvent}</h3>
+          <ul>
+            {invites.map((invite) => (
+              <li key={invite.id}>{invite.email} - {invite.status}</li>
+            ))}
+          </ul>
+        </div>
+      )}
         </div>
       </div>
     );
