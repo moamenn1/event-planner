@@ -1,0 +1,137 @@
+---
+# Backend ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  labels:
+    app: event-planner
+    component: backend
+data:
+  MONGO_URI: "mongodb+srv://mohamedsherif_db_user:U6u1xL4n3sWivIFl@cluster0.0tsr63a.mongodb.net/event_planner?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
+  DB_NAME: "event_planner"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+
+---
+# Backend Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secret
+  labels:
+    app: event-planner
+    component: backend
+type: Opaque
+stringData:
+  SECRET_KEY: "change-this-secret-key-in-production-use-strong-random-string-here"
+
+---
+# Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: event-planner
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: event-planner
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: event-planner
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: docker.io/mohameddsheriff/event-planner-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: MONGO_URI
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: MONGO_URI
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: DB_NAME
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secret
+              key: SECRET_KEY
+        - name: ACCESS_TOKEN_EXPIRE_MINUTES
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: ACCESS_TOKEN_EXPIRE_MINUTES
+        - name: ALLOWED_ORIGINS
+          value: "https://frontend-mohameddsherif-dev.apps.rm3.7wse.p1.openshiftapps.com"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+# Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    app: event-planner
+    component: backend
+spec:
+  selector:
+    app: event-planner
+    component: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  type: ClusterIP
+
+---
+# Backend Route
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: backend
+  labels:
+    app: event-planner
+    component: backend
+spec:
+  to:
+    kind: Service
+    name: backend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
