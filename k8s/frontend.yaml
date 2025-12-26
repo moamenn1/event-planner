@@ -21,14 +21,14 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: docker.io/moamen1/event-planner-frontend:latest
+        image: docker.io/mohameddsheriff/event-planner-frontend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 5173
           name: http
         env:
         - name: VITE_API_URL
-          value: "https://backend-event-planner.apps.sandbox.YOUR_CLUSTER.openshiftapps.com"
+          value: "https://backend-mohameddsherif-dev.apps.rm3.7wse.p1.openshiftapps.com/api"
         livenessProbe:
           httpGet:
             path: /

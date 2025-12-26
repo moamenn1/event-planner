@@ -8,7 +8,7 @@ metadata:
     app: event-planner
     component: backend
 data:
-  MONGO_URI: "mongodb://mongodb:27017"
+  MONGO_URI: "mongodb+srv://mohamedsherif_db_user:U6u1xL4n3sWivIFl@cluster0.0tsr63a.mongodb.net/event_planner?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
   DB_NAME: "event_planner"
   ACCESS_TOKEN_EXPIRE_MINUTES: "60"
 
@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: docker.io/moamen1/event-planner-backend:latest
+        image: docker.io/mohameddsheriff/event-planner-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -75,7 +75,7 @@ spec:
               name: backend-config
               key: ACCESS_TOKEN_EXPIRE_MINUTES
         - name: ALLOWED_ORIGINS
-          value: "*"  # Will be updated after frontend route is created
+          value: "https://frontend-mohameddsherif-dev.apps.rm3.7wse.p1.openshiftapps.com"
         livenessProbe:
           httpGet:
             path: /

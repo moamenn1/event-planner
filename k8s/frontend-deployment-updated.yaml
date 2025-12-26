@@ -136,7 +136,7 @@ metadata:
           'f:unavailableReplicas': {}
           'f:updatedReplicas': {}
       subresource: status
-  namespace: moamen1-dev
+  namespace: mohameddsherif-dev
   labels:
     app: event-planner
     component: frontend
@@ -194,7 +194,7 @@ spec:
               protocol: TCP
           imagePullPolicy: Always
           terminationMessagePolicy: File
-          image: 'docker.io/moamen1/event-planner-frontend:latest'
+          image: 'docker.io/mohameddsheriff/event-planner-frontend'
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
